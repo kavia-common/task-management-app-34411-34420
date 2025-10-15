@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Single to-do item with:
@@ -13,6 +13,14 @@ export default function TodoItem({ task, onToggleComplete, onDelete, onSave }) {
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes || '');
   const [err, setErr] = useState('');
+  const titleEditRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && titleEditRef.current) {
+      titleEditRef.current.focus();
+      titleEditRef.current.select();
+    }
+  }, [isEditing]);
 
   const handleSave = () => {
     const t = title.trim();
@@ -32,8 +40,18 @@ export default function TodoItem({ task, onToggleComplete, onDelete, onSave }) {
     setIsEditing(false);
   };
 
+  const onKeyDownEditing = (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
+    }
+  };
+
   return (
-    <div className={`item ${task.completed ? 'completed' : ''}`}>
+    <div className={`item ${task.completed ? 'completed' : ''}`} role="listitem" aria-label={`Task: ${task.title}`}>
       <div className="checkbox">
         <input
           id={`chk-${task.id}`}
@@ -55,15 +73,20 @@ export default function TodoItem({ task, onToggleComplete, onDelete, onSave }) {
         ) : (
           <div className="inline-edit" role="group" aria-label="Edit task">
             <input
+              ref={titleEditRef}
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={onKeyDownEditing}
               aria-invalid={!!err}
+              aria-label="Edit title"
             />
             <textarea
               className="textarea"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              onKeyDown={onKeyDownEditing}
+              aria-label="Edit notes"
             />
             {err ? <div style={{ color: 'var(--color-error)', fontSize: 12 }}>{err}</div> : null}
           </div>

@@ -7,7 +7,7 @@ import TodoItem from './TodoItem';
 // PUBLIC_INTERFACE
 export default function TodoList({ tasks, onToggleComplete, onDelete, onSave }) {
   return (
-    <>
+    <div role="list" aria-label="Tasks">
       {tasks.map(task => (
         <TodoItem
           key={task.id}
@@ -17,6 +17,6 @@ export default function TodoList({ tasks, onToggleComplete, onDelete, onSave }) 
           onSave={onSave}
         />
       ))}
-    </>
+    </div>
   );
 }

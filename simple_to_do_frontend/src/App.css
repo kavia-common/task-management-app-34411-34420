@@ -10,6 +10,10 @@
   --muted: #6b7280;
   --border: #e5e7eb;
   --shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+
+  --ring: 0 0 0 4px rgba(37,99,235,0.15);
+  --transition-fast: 120ms ease;
+  --transition-med: 220ms ease;
 }
 
 * { box-sizing: border-box; }
@@ -18,6 +22,33 @@ body, #root, .App {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: top var(--transition-med);
+  z-index: 50;
+}
+.skip-link:focus {
+  top: 8px;
+  box-shadow: var(--ring);
+  outline: none;
+}
+
+/* Visually hidden utility for live regions */
+.sr-only {
+  position: absolute !important;
+  height: 1px; width: 1px;
+  overflow: hidden;
+  clip: rect(1px,1px,1px,1px);
+  white-space: nowrap;
 }
 
 /* Layout */
@@ -32,7 +63,6 @@ body, #root, .App {
   background: linear-gradient(135deg, rgba(37,99,235,0.10), rgba(249,250,251,1));
   border-bottom: 1px solid var(--border);
 }
-
 .header-inner {
   max-width: 720px;
   margin: 0 auto;
@@ -41,7 +71,6 @@ body, #root, .App {
   align-items: center;
   gap: 12px;
 }
-
 .logo {
   display: inline-flex;
   width: 40px;
@@ -55,11 +84,7 @@ body, #root, .App {
   color: var(--color-primary);
   font-weight: 800;
 }
-
-.title-wrap {
-  display: flex;
-  flex-direction: column;
-}
+.title-wrap { display: flex; flex-direction: column; }
 .app-title {
   margin: 0;
   font-size: 20px;
@@ -67,11 +92,7 @@ body, #root, .App {
   letter-spacing: 0.2px;
   color: var(--text);
 }
-.app-subtitle {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
+.app-subtitle { margin: 0; font-size: 12px; color: var(--muted); }
 
 /* Card */
 .card {
@@ -80,6 +101,7 @@ body, #root, .App {
   border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 16px;
+  transition: box-shadow var(--transition-med), transform var(--transition-fast);
 }
 
 /* Input Row */
@@ -97,10 +119,7 @@ body, #root, .App {
   grid-template-columns: 1fr;
   gap: 8px;
 }
-.field {
-  display: flex;
-  gap: 8px;
-}
+.field { display: flex; gap: 8px; }
 .input, .textarea {
   width: 100%;
   border: 1px solid var(--border);
@@ -109,22 +128,15 @@ body, #root, .App {
   padding: 12px 12px;
   border-radius: 10px;
   outline: none;
-  transition: border-color .2s, box-shadow .2s, transform .08s ease;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform .08s ease;
 }
 .input:focus, .textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(37,99,235,0.15);
+  box-shadow: var(--ring);
 }
-.textarea {
-  resize: vertical;
-  min-height: 60px;
-}
+.textarea { resize: vertical; min-height: 60px; }
 
-.label {
-  font-size: 12px;
-  color: var(--muted);
-  margin-left: 2px;
-}
+.label { font-size: 12px; color: var(--muted); margin-left: 2px; }
 
 /* Buttons */
 .btn {
@@ -134,10 +146,11 @@ body, #root, .App {
   padding: 10px 14px;
   border-radius: 10px;
   cursor: pointer;
-  transition: transform .08s ease, box-shadow .2s, background .2s, border-color .2s;
+  transition: transform .08s ease, box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), filter var(--transition-fast);
 }
-.btn:active { transform: translateY(1px); }
-.btn:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.15); }
+.btn:hover { background: rgba(17,24,39,0.02); }
+.btn:active { transform: translateY(1px) scale(0.99); }
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
@@ -172,7 +185,9 @@ body, #root, .App {
   background: #fff;
   color: var(--text);
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
+.filter-btn:hover { background: rgba(17,24,39,0.02); }
 .filter-btn.active {
   background: rgba(37,99,235,0.10);
   border-color: rgba(37,99,235,0.35);
@@ -194,24 +209,36 @@ body, #root, .App {
   grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: start;
+  animation: item-enter var(--transition-med);
+  transition: transform var(--transition-med), box-shadow var(--transition-med), background var(--transition-fast), border-color var(--transition-fast);
 }
+.item:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
 .item.completed {
-  opacity: 0.75;
+  opacity: 0.82;
 }
 .checkbox {
   margin-top: 6px;
   display: inline-flex;
   width: 20px;
   height: 20px;
+  transition: transform var(--transition-fast);
 }
+.checkbox input:active { transform: scale(0.94); }
 .item-title {
-  font-weight: 600;
+  font-weight: 700;
   margin: 0 0 4px;
+  transition: color var(--transition-fast), opacity var(--transition-fast), text-decoration-color var(--transition-fast);
 }
 .item-notes {
   color: var(--muted);
   margin: 0;
   font-size: 13px;
+}
+.item.completed .item-title {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(17,24,39,0.35);
+  opacity: 0.8;
 }
 .item-actions {
   display: flex;
@@ -223,9 +250,42 @@ body, #root, .App {
   gap: 8px;
 }
 
+/* Add/remove animation keyframes */
+@keyframes item-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes item-exit {
+  from { opacity: 1; height: var(--h, auto); margin-top: var(--mt, 10px); }
+  to { opacity: 0; height: 0; margin-top: 0; }
+}
+
+/* Exit animation helper class (applied inline in JS just before removal if desired)
+   Note: we rely on optimistic update; the smooth removal effect is achieved with CSS transition on grid gap + using .item-exiting if implemented.
+*/
+
 /* Empty state */
 .empty {
   text-align: center;
   color: var(--muted);
   padding: 24px 12px;
+}
+.empty-panel {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.empty-emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+.empty-title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: var(--text);
+}
+.empty-text {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
 }

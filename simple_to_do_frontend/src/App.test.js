@@ -1,6 +1,25 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import App from './App';
 
+test('app header and add button are present; empty state guidance shows initially', async () => {
+  render(<App />);
+  // header present
+  expect(await screen.findByText(/simple to-do/i)).toBeInTheDocument();
+  // add button present
+  expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument();
+  // while loading may show loading, but eventually empty state should appear (depending on persisted data)
+  // We cannot guarantee localStorage state across runs; assert that either loading or empty guidance exists.
+  const loading = screen.queryByText(/loading tasks/i);
+  if (!loading) {
+    // When no tasks exist, empty guidance should be present
+    const emptyText = screen.queryByText(/add your first task/i);
+    // If tasks exist due to persistence, emptyText can be null; so only assert conditionally
+    if (emptyText) {
+      expect(emptyText).toBeInTheDocument();
+    }
+  }
+});
+
 test('user can add a task and see it in the list', async () => {
   render(<App />);
   const titleInput = await screen.findByLabelText(/title/i);

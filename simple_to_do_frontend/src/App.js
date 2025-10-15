@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import './index.css';
 import { mockApi } from './api/mockApi';
@@ -22,6 +22,9 @@ function App() {
   const [filter, setFilter] = useState('all'); // all | active | completed
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const mainRef = useRef(null);
+  const addInputRef = useRef(null);
 
   // Load tasks on mount
   useEffect(() => {
@@ -43,17 +46,28 @@ function App() {
     return tasks;
   }, [tasks, filter]);
 
+  // Helper to announce politely without flooding
+  const announce = (msg) => {
+    setAnnouncement(''); // clear first to ensure SRs speak repeated messages
+    setTimeout(() => setAnnouncement(msg), 10);
+  };
+
   // PUBLIC_INTERFACE
   const addTask = async ({ title, notes }) => {
     setErrorMsg('');
     const optimistic = { id: `tmp-${Date.now()}`, title, notes: notes || '', completed: false };
     setTasks(prev => [optimistic, ...prev]);
+    announce('Task added');
     try {
       const saved = await mockApi.create({ title, notes });
       setTasks(prev => prev.map(t => (t.id === optimistic.id ? saved : t)));
     } catch (e) {
       setTasks(prev => prev.filter(t => t.id !== optimistic.id));
       setErrorMsg('Could not add task.');
+      announce('Add failed');
+    } finally {
+      // return focus to add input
+      if (addInputRef.current) addInputRef.current.focus();
     }
   };
 
@@ -62,12 +76,14 @@ function App() {
     setErrorMsg('');
     const before = tasks;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    announce('Task status updated');
     try {
       const current = before.find(t => t.id === id);
       await mockApi.update(id, { completed: !current.completed });
     } catch (e) {
       setTasks(before); // rollback
       setErrorMsg('Could not update task.');
+      announce('Update failed');
     }
   };
 
@@ -76,11 +92,13 @@ function App() {
     setErrorMsg('');
     const before = tasks;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, title, notes } : t));
+    announce('Task updated');
     try {
       await mockApi.update(id, { title, notes });
     } catch (e) {
       setTasks(before);
       setErrorMsg('Could not save changes.');
+      announce('Save failed');
     }
   };
 
@@ -89,16 +107,21 @@ function App() {
     setErrorMsg('');
     const before = tasks;
     setTasks(prev => prev.filter(t => t.id !== id));
+    announce('Task deleted');
     try {
       await mockApi.remove(id);
     } catch (e) {
       setTasks(before);
       setErrorMsg('Could not delete task.');
+      announce('Delete failed');
     }
   };
 
   return (
     <div className="App">
+      {/* Skip link for keyboard users */}
+      <a href="#main-content" className="skip-link">Skip to content</a>
+
       <header className="header" role="banner">
         <div className="header-inner">
           <div className="logo" aria-hidden="true">✓</div>
@@ -109,9 +132,19 @@ function App() {
         </div>
       </header>
 
-      <main className="container" role="main">
+      <main id="main-content" ref={mainRef} className="container" role="main" tabIndex="-1">
+        {/* polite live region for key actions */}
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          role="status"
+          className="sr-only"
+        >
+          {announcement}
+        </div>
+
         <section className="card" aria-label="Add task">
-          <TodoInput onAdd={addTask} />
+          <TodoInput onAdd={addTask} inputRef={addInputRef} />
           <div className="filters" role="group" aria-label="Filter tasks">
             <button
               className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
@@ -139,7 +172,19 @@ function App() {
           {loading ? (
             <div className="empty" aria-busy="true">Loading tasks…</div>
           ) : visibleTasks.length === 0 ? (
-            <div className="card empty">No tasks yet. Add your first task above.</div>
+            <div className="card empty empty-panel" role="region" aria-label="Empty state">
+              <div className="empty-emoji" aria-hidden="true">🌊</div>
+              <h2 className="empty-title">You’re all set</h2>
+              <p className="empty-text">No tasks here yet. Add your first task to get started.</p>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  if (addInputRef.current) addInputRef.current.focus();
+                }}
+              >
+                Add a task
+              </button>
+            </div>
           ) : (
             <TodoList
               tasks={visibleTasks}

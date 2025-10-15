@@ -1,15 +1,22 @@
 /* eslint-disable react/prop-types */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Task input form. Title is required; notes optional.
  * Calls onAdd({ title, notes }) when submitted.
  */
 // PUBLIC_INTERFACE
-export default function TodoInput({ onAdd }) {
+export default function TodoInput({ onAdd, inputRef }) {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    // autofocus initial mount for keyboard flow
+    if (inputRef?.current) {
+      inputRef.current.focus();
+    }
+  }, [inputRef]);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -22,6 +29,7 @@ export default function TodoInput({ onAdd }) {
     onAdd({ title: trimmed, notes: notes.trim() });
     setTitle('');
     setNotes('');
+    // focus will be set by parent after add via live region handler
   };
 
   return (
@@ -31,6 +39,7 @@ export default function TodoInput({ onAdd }) {
           <label htmlFor="task-title" className="label">Title</label>
           <input
             id="task-title"
+            ref={inputRef}
             className="input"
             placeholder="What do you need to do?"
             value={title}
