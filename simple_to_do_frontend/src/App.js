@@ -16,10 +16,12 @@ function App() {
    * - Inline edit (save/cancel)
    * - Delete
    * - Filter: All, Active, Completed
+   * - Text search: filters by title and notes
    * Optimistic UI updates are used with rollback on API error.
    */
   const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState('all'); // all | active | completed
+  const [searchQuery, setSearchQuery] = useState(''); // text search query
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [announcement, setAnnouncement] = useState('');
@@ -29,22 +31,37 @@ function App() {
   // Load tasks on mount
   useEffect(() => {
     let mounted = true;
-    mockApi.list()
+    mockApi
+      .list()
       .then((res) => {
         if (!mounted) return;
         setTasks(res);
       })
       .catch(() => setErrorMsg('Failed to load tasks'))
       .finally(() => setLoading(false));
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Derived tasks by filter
-  const visibleTasks = useMemo(() => {
-    if (filter === 'active') return tasks.filter(t => !t.completed);
-    if (filter === 'completed') return tasks.filter(t => t.completed);
-    return tasks;
-  }, [tasks, filter]);
+  // Derived tasks by filter + search (memoized, does not mutate source)
+  const filteredTasks = useMemo(() => {
+    let list = tasks;
+    if (filter === 'active') {
+      list = list.filter((t) => !t.completed);
+    } else if (filter === 'completed') {
+      list = list.filter((t) => t.completed);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (t) =>
+          (t.title || '').toLowerCase().includes(q) ||
+          (t.notes || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [tasks, filter, searchQuery]);
 
   // Helper to announce politely without flooding
   const announce = (msg) => {
@@ -55,14 +72,19 @@ function App() {
   // PUBLIC_INTERFACE
   const addTask = async ({ title, notes }) => {
     setErrorMsg('');
-    const optimistic = { id: `tmp-${Date.now()}`, title, notes: notes || '', completed: false };
-    setTasks(prev => [optimistic, ...prev]);
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
+      title,
+      notes: notes || '',
+      completed: false,
+    };
+    setTasks((prev) => [optimistic, ...prev]);
     announce('Task added');
     try {
       const saved = await mockApi.create({ title, notes });
-      setTasks(prev => prev.map(t => (t.id === optimistic.id ? saved : t)));
+      setTasks((prev) => prev.map((t) => (t.id === optimistic.id ? saved : t)));
     } catch (e) {
-      setTasks(prev => prev.filter(t => t.id !== optimistic.id));
+      setTasks((prev) => prev.filter((t) => t.id !== optimistic.id));
       setErrorMsg('Could not add task.');
       announce('Add failed');
     } finally {
@@ -75,10 +97,12 @@ function App() {
   const toggleComplete = async (id) => {
     setErrorMsg('');
     const before = tasks;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
     announce('Task status updated');
     try {
-      const current = before.find(t => t.id === id);
+      const current = before.find((t) => t.id === id);
       await mockApi.update(id, { completed: !current.completed });
     } catch (e) {
       setTasks(before); // rollback
@@ -91,7 +115,9 @@ function App() {
   const saveTask = async (id, { title, notes }) => {
     setErrorMsg('');
     const before = tasks;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, title, notes } : t));
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, title, notes } : t))
+    );
     announce('Task updated');
     try {
       await mockApi.update(id, { title, notes });
@@ -106,7 +132,7 @@ function App() {
   const deleteTask = async (id) => {
     setErrorMsg('');
     const before = tasks;
-    setTasks(prev => prev.filter(t => t.id !== id));
+    setTasks((prev) => prev.filter((t) => t.id !== id));
     announce('Task deleted');
     try {
       await mockApi.remove(id);
@@ -120,11 +146,15 @@ function App() {
   return (
     <div className="App">
       {/* Skip link for keyboard users */}
-      <a href="#main-content" className="skip-link">Skip to content</a>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
 
       <header className="header" role="banner">
         <div className="header-inner">
-          <div className="logo" aria-hidden="true">✓</div>
+          <div className="logo" aria-hidden="true">
+            ✓
+          </div>
           <div className="title-wrap">
             <h1 className="app-title">Simple To-Do</h1>
             <p className="app-subtitle">Stay focused. Get things done.</p>
@@ -132,7 +162,13 @@ function App() {
         </div>
       </header>
 
-      <main id="main-content" ref={mainRef} className="container" role="main" tabIndex="-1">
+      <main
+        id="main-content"
+        ref={mainRef}
+        className="container"
+        role="main"
+        tabIndex="-1"
+      >
         {/* polite live region for key actions */}
         <div
           aria-live="polite"
@@ -145,37 +181,77 @@ function App() {
 
         <section className="card" aria-label="Add task">
           <TodoInput onAdd={addTask} inputRef={addInputRef} />
-          <div className="filters" role="group" aria-label="Filter tasks">
-            <button
-              className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
-            >
-              All
-            </button>
-            <button
-              className={`filter-btn ${filter === 'active' ? 'active' : ''}`}
-              onClick={() => setFilter('active')}
-            >
-              Active
-            </button>
-            <button
-              className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
-              onClick={() => setFilter('completed')}
-            >
-              Completed
-            </button>
+
+          {/* Search + Filters control group */}
+          <div className="controls" role="group" aria-label="Search and filter tasks">
+            <div className="search">
+              <label htmlFor="task-search" className="label">
+                Search
+              </label>
+              <div className="search-field">
+                <input
+                  id="task-search"
+                  className="input search-input"
+                  type="search"
+                  placeholder="Search title or notes"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search tasks"
+                />
+                {searchQuery ? (
+                  <button
+                    className="btn btn-ghost clear-btn"
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="filters" role="group" aria-label="Filter tasks">
+              <button
+                className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                onClick={() => setFilter('all')}
+                aria-pressed={filter === 'all'}
+              >
+                All
+              </button>
+              <button
+                className={`filter-btn ${filter === 'active' ? 'active' : ''}`}
+                onClick={() => setFilter('active')}
+                aria-pressed={filter === 'active'}
+              >
+                Active
+              </button>
+              <button
+                className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
+                onClick={() => setFilter('completed')}
+                aria-pressed={filter === 'completed'}
+              >
+                Completed
+              </button>
+            </div>
           </div>
         </section>
 
         <section className="list" aria-label="Task list">
           {errorMsg ? <div role="alert" className="empty">{errorMsg}</div> : null}
           {loading ? (
-            <div className="empty" aria-busy="true">Loading tasks…</div>
-          ) : visibleTasks.length === 0 ? (
+            <div className="empty" aria-busy="true">
+              Loading tasks…
+            </div>
+          ) : filteredTasks.length === 0 ? (
             <div className="card empty empty-panel" role="region" aria-label="Empty state">
-              <div className="empty-emoji" aria-hidden="true">🌊</div>
+              <div className="empty-emoji" aria-hidden="true">
+                🌊
+              </div>
               <h2 className="empty-title">You’re all set</h2>
-              <p className="empty-text">No tasks here yet. Add your first task to get started.</p>
+              <p className="empty-text">
+                No tasks here yet. Add your first task to get started.
+              </p>
               <button
                 className="btn btn-primary"
                 onClick={() => {
@@ -187,7 +263,7 @@ function App() {
             </div>
           ) : (
             <TodoList
-              tasks={visibleTasks}
+              tasks={filteredTasks}
               onToggleComplete={toggleComplete}
               onDelete={deleteTask}
               onSave={saveTask}

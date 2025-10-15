@@ -65,3 +65,36 @@ test('user can edit an added task inline (save/cancel visible)', async () => {
   expect(saveBtn).toBeInTheDocument();
   expect(cancelBtn).toBeInTheDocument();
 });
+
+test('search input filters tasks by title or notes and can be cleared', async () => {
+  render(<App />);
+
+  // Add two uniquely named tasks
+  const titleInput = await screen.findByLabelText(/title/i);
+  const addBtn = screen.getByRole('button', { name: /add task/i });
+
+  fireEvent.change(titleInput, { target: { value: 'UniqueAlpha' } });
+  fireEvent.click(addBtn);
+  expect(await screen.findByText('UniqueAlpha')).toBeInTheDocument();
+
+  fireEvent.change(titleInput, { target: { value: 'UniqueBeta' } });
+  fireEvent.click(addBtn);
+  expect(await screen.findByText('UniqueBeta')).toBeInTheDocument();
+
+  // Search for "alpha" -> only UniqueAlpha should be visible among the two
+  const search = screen.getByLabelText(/search tasks/i);
+  fireEvent.change(search, { target: { value: 'alpha' } });
+
+  expect(screen.getByText('UniqueAlpha')).toBeInTheDocument();
+  expect(screen.queryByText('UniqueBeta')).not.toBeInTheDocument();
+
+  // Clear the search -> both appear again
+  fireEvent.click(screen.getByRole('button', { name: /clear search/i }));
+  expect(screen.getByText('UniqueAlpha')).toBeInTheDocument();
+  expect(screen.getByText('UniqueBeta')).toBeInTheDocument();
+
+  // Search for "beta" -> only UniqueBeta visible
+  fireEvent.change(search, { target: { value: 'beta' } });
+  expect(screen.getByText('UniqueBeta')).toBeInTheDocument();
+  expect(screen.queryByText('UniqueAlpha')).not.toBeInTheDocument();
+});

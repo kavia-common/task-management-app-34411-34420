@@ -170,6 +170,35 @@ body, #root, .App {
 }
 .btn-ghost:hover { background: rgba(17,24,39,0.04); }
 
+/* Controls (search + filters) */
+.controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+@media (max-width: 560px) {
+  .controls {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
+
+/* Search */
+.search-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.search-input {
+  flex: 1;
+  min-width: 0;
+}
+.clear-btn {
+  white-space: nowrap;
+}
+
 /* Filters */
 .filters {
   display: flex;
@@ -188,7 +217,8 @@ body, #root, .App {
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 .filter-btn:hover { background: rgba(17,24,39,0.02); }
-.filter-btn.active {
+.filter-btn.active,
+.filter-btn[aria-pressed="true"] {
   background: rgba(37,99,235,0.10);
   border-color: rgba(37,99,235,0.35);
   color: var(--color-primary);
